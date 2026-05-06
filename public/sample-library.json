@@ -1,0 +1,23 @@
+{
+  "playlists": [
+    {
+      "id": "pl-chill",
+      "name": "Chill Malam",
+      "description": "Nuansa santai",
+      "trackIds": ["track-a", "track-b"]
+    }
+  ],
+  "tracks": [
+    {
+      "id": "track-a",
+      "title": "Judul Lagu A",
+      "artist": "Nama Artist",
+      "duration": 120,
+      "lyrics": [
+        { "time": 0, "text": "Lirik baris pertama" },
+        { "time": 8, "text": "Lirik baris kedua" },
+        { "time": 16, "text": "Lirik baris ketiga" }
+      ]
+    }
+  ]
+}
