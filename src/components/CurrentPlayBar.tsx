@@ -11,7 +11,6 @@ import {
   readPlayerState,
   writePlayerState,
 } from "@/lib/playerState";
-import NativePopupToggleButton from "@/components/NativePopupToggleButton";
 
 export default function CurrentPlayBar() {
   const pathname = usePathname();
@@ -89,8 +88,8 @@ export default function CurrentPlayBar() {
   if (!state || !currentTrack || !isVisible) return null;
 
   const href = state.playlistId
-    ? `/lyric/${currentTrack.id}?playlistId=${state.playlistId}`
-    : `/lyric/${currentTrack.id}`;
+    ? `/lyric/${currentTrack.id}?playlistId=${state.playlistId}&resume=1`
+    : `/lyric/${currentTrack.id}?resume=1`;
 
   const progress =
     currentTrack.duration > 0 ? (state.position / currentTrack.duration) * 100 : 0;
@@ -127,7 +126,6 @@ export default function CurrentPlayBar() {
             >
               <X size={16} />
             </button>
-            <NativePopupToggleButton />
             <button
               className="grid h-9 w-9 place-items-center rounded-full text-white bg-violet-500"
               onClick={() => updateState({ isPlaying: !state.isPlaying })}

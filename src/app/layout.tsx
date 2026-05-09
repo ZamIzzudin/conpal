@@ -6,7 +6,6 @@ import CurrentPlayBar from "@/components/CurrentPlayBar";
 import ThemeToggle from "@/components/ThemeToggle";
 import InstallPwaPrompt from "@/components/InstallPwaPrompt";
 import PlaybackStateManager from "@/components/PlaybackStateManager";
-import NativePopupController from "@/components/NativePopupController";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -33,7 +32,6 @@ export default function RootLayout({
         </Script>
         {children}
         <PlaybackStateManager />
-        <NativePopupController />
         <InstallPwaPrompt />
         <ThemeToggle />
         <CurrentPlayBar />

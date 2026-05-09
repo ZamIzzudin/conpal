@@ -8,8 +8,10 @@ export function generateStaticParams() {
 
 export default function LyricPage({
   params,
+  searchParams,
 }: {
   params: { trackId: string };
+  searchParams: { resume?: string };
 }) {
   const currentTrack = getTrackById(params.trackId);
   const playlist = getPlaylistByTrackId(params.trackId);
@@ -34,6 +36,7 @@ export default function LyricPage({
         queue={queue}
         initialTrackId={currentTrack.id}
         playlistId={playlist?.id}
+        preferSharedState={searchParams.resume === "1"}
       />
     </main>
   );

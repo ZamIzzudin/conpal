@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Maximize2,
+  Minimize2,
   Pause,
   Play,
   RotateCcw,
@@ -21,12 +23,14 @@ type Props = {
   queue: Track[];
   initialTrackId?: string;
   playlistId?: string;
+  preferSharedState?: boolean;
 };
 
 export default function LyricPlayer({
   queue,
   initialTrackId,
   playlistId,
+  preferSharedState = false,
 }: Props) {
   const initialIndex = useMemo(() => {
     if (!initialTrackId) return 0;
@@ -39,6 +43,8 @@ export default function LyricPlayer({
   const [position, setPosition] = useState(0);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLandscapeLayout, setIsLandscapeLayout] = useState(false);
 
   const lyricContainerRef = useRef<HTMLDivElement | null>(null);
   const lyricLineRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -103,7 +109,8 @@ export default function LyricPlayer({
 
   useEffect(() => {
     const shared = readPlayerState();
-    const didSync = shared ? applySharedState(shared) : false;
+    const didSync =
+      preferSharedState && shared ? applySharedState(shared) : false;
 
     if (!didSync) {
       writePlayerState({
@@ -113,10 +120,13 @@ export default function LyricPlayer({
         isPlaying: false,
         playlistId,
       });
+      setTrackIndex(initialIndex);
+      setPosition(0);
+      setIsPlaying(false);
     }
 
     setIsHydrated(true);
-  }, [applySharedState, initialIndex, playlistId, queueIds]);
+  }, [applySharedState, initialIndex, playlistId, preferSharedState, queueIds]);
 
   useEffect(() => {
     const syncFromSharedState = () => {
@@ -170,6 +180,14 @@ export default function LyricPlayer({
     };
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = isFullscreen ? "hidden" : "";
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isFullscreen]);
+
   const handleLyricScroll = () => {
     setIsUserScrolling(true);
 
@@ -184,6 +202,10 @@ export default function LyricPlayer({
     }, 1400);
   };
 
+  const toggleLayoutRotation = () => {
+    setIsLandscapeLayout((prev) => !prev);
+  };
+
   if (!currentTrack) {
     return <p>Track tidak ditemukan.</p>;
   }
@@ -192,96 +214,131 @@ export default function LyricPlayer({
     currentTrack.duration > 0 ? (position / currentTrack.duration) * 100 : 0;
 
   return (
-    <section className="grid justify-items-center gap-3">
+    <section
+      className={`grid justify-items-center gap-3 ${isFullscreen ? "fixed inset-0 z-50 bg-zinc-100 p-3.5 dark:bg-zinc-900" : ""}`}
+    >
       <div
-        ref={lyricContainerRef}
-        onScroll={handleLyricScroll}
-        className="mt-1 w-full max-h-[71dvh] overflow-auto pb-2"
+        className={isFullscreen ? `relative grid h-full w-full ${isLandscapeLayout ? "grid-cols-[1fr_auto] gap-3" : "grid-rows-[auto_1fr]"}` : "w-full"}
       >
-        {currentTrack.lyrics.map((line, idx) => (
+        {isFullscreen ? (
           <button
-            key={`${line.time}-${idx}`}
-            ref={(el) => {
-              lyricLineRefs.current[idx] = el;
-            }}
             type="button"
-            onClick={() => writeSharedState({ position: line.time })}
-            className={`w-full rounded-lg px-1 py-2 text-left leading-6 duration-200 ${idx === activeLyricIndex ? "font-bold text-indigo-950 dark:text-violet-300 text-xl" : "text-zinc-500 dark:text-zinc-400"}`}
+            className="absolute right-0 top-0 z-10 grid h-8 w-8 place-items-center rounded-full bg-violet-600 text-white"
+            onClick={() => setIsFullscreen(false)}
+            aria-label="Exit fullscreen"
           >
-            {line.text}
+            <Minimize2 size={14} />
           </button>
-        ))}
-      </div>
+        ) : null}
 
-      <div className="fixed bottom-3 left-1/2 z-30 w-full max-w-[420px] -translate-x-1/2 px-3.5">
-        <div className="rounded-2xl bg-zinc-100/95 p-4 text-zinc-700 shadow-lg backdrop-blur dark:bg-zinc-800 dark:text-zinc-300 dark:shadow-none dark:backdrop-blur-none">
-          <div>
-            <input
-              type="range"
-              min={0}
-              max={currentTrack.duration}
-              value={position}
-              onChange={(e) =>
-                writeSharedState({ position: Number(e.target.value) })
-              }
-              style={{
-                background: `linear-gradient(to right, rgb(139 92 246) 0%, rgb(139 92 246) ${progress}%, rgb(63 63 70) ${progress}%, rgb(63 63 70) 100%)`,
-              }}
-              className="h-1 w-full appearance-none rounded-full"
-            />
-            <div className="mt-1 flex items-center justify-between text-xs text-zinc-700 dark:text-zinc-300">
-              <small>
-                {Math.floor(position / 60)}:
-                {String(position % 60).padStart(2, "0")}
-              </small>
-              <small>
-                {Math.floor(currentTrack.duration / 60)}:
-                {String(currentTrack.duration % 60).padStart(2, "0")}
-              </small>
+        {isFullscreen ? (
+          <div className={`flex items-center justify-between gap-2 ${isLandscapeLayout ? "col-span-2 pr-10" : "pb-1 pr-10"}`}>
+            <div className="min-w-0">
+              <p className={`truncate font-semibold leading-tight ${isLandscapeLayout ? "text-base" : "text-sm"}`}>
+                {currentTrack.title}
+              </p>
+              <p className={`truncate text-zinc-500 dark:text-zinc-400 ${isLandscapeLayout ? "text-xs" : "text-[11px]"}`}>
+                {currentTrack.artist}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="grid h-8 w-8 place-items-center rounded-full bg-violet-100 text-violet-800 dark:bg-zinc-800 dark:text-violet-300"
+                onClick={toggleLayoutRotation}
+                aria-label="Rotate layout"
+              >
+                <RotateCw size={14} />
+              </button>
             </div>
           </div>
+        ) : null}
 
-          <div className="mt-2 flex justify-center gap-2">
+        <div
+          ref={lyricContainerRef}
+          onScroll={handleLyricScroll}
+          className={`mt-1 w-full overflow-auto pb-2 ${isFullscreen ? (isLandscapeLayout ? "h-[calc(100dvh-80px)]" : "h-[calc(100dvh-88px)]") : "max-h-[71dvh]"}`}
+        >
+          {currentTrack.lyrics.map((line, idx) => (
             <button
-              className="grid h-11 w-11 place-items-center rounded-full bg-violet-100 text-violet-800 dark:bg-zinc-800 dark:text-violet-300"
-              onClick={() => seek(-5)}
-              aria-label="Mundur 5 detik"
+              key={`${line.time}-${idx}`}
+              ref={(el) => {
+                lyricLineRefs.current[idx] = el;
+              }}
+              type="button"
+              onClick={() => writeSharedState({ position: line.time })}
+              className={`w-full rounded-lg px-1 py-2 text-left duration-200 ${isFullscreen && isLandscapeLayout ? "leading-8 text-xl" : "leading-6"} ${idx === activeLyricIndex ? "font-bold text-indigo-950 dark:text-violet-300 text-xl" : "text-zinc-500 dark:text-zinc-400"}`}
             >
-              <RotateCcw size={18} />
+              {line.text}
             </button>
-            <button
-              className="grid h-11 w-11 place-items-center rounded-full bg-violet-100 text-violet-800 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-zinc-800 dark:text-violet-300"
-              onClick={() => switchTrack(trackIndex - 1)}
-              disabled={trackIndex === 0}
-              aria-label="Track sebelumnya"
-            >
-              <SkipBack size={18} />
-            </button>
-            <button
-              className="grid h-11 w-11 place-items-center rounded-full bg-violet-600 text-white"
-              onClick={togglePlay}
-              aria-label={isPlaying ? "Pause" : "Play"}
-            >
-              {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-            </button>
-            <button
-              className="grid h-11 w-11 place-items-center rounded-full bg-violet-100 text-violet-800 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-zinc-800 dark:text-violet-300"
-              onClick={() => switchTrack(trackIndex + 1)}
-              disabled={trackIndex === queue.length - 1}
-              aria-label="Track selanjutnya"
-            >
-              <SkipForward size={18} />
-            </button>
-            <button
-              className="grid h-11 w-11 place-items-center rounded-full bg-violet-100 text-violet-800 dark:bg-zinc-800 dark:text-violet-300"
-              onClick={() => seek(5)}
-              aria-label="Maju 5 detik"
-            >
-              <RotateCw size={18} />
-            </button>
-          </div>
+          ))}
         </div>
       </div>
+
+      {!isFullscreen ? (
+        <div className="fixed bottom-3 left-1/2 z-30 w-full max-w-[420px] -translate-x-1/2 px-3.5">
+          <div className="rounded-2xl bg-zinc-100/95 p-4 text-zinc-700 shadow-lg backdrop-blur dark:bg-zinc-800 dark:text-zinc-300 dark:shadow-none dark:backdrop-blur-none">
+            <div>
+              <input
+                type="range"
+                min={0}
+                max={currentTrack.duration}
+                value={position}
+                onChange={(e) =>
+                  writeSharedState({ position: Number(e.target.value) })
+                }
+                style={{
+                  background: `linear-gradient(to right, rgb(139 92 246) 0%, rgb(139 92 246) ${progress}%, rgb(63 63 70) ${progress}%, rgb(63 63 70) 100%)`,
+                }}
+                className="h-1 w-full appearance-none rounded-full"
+              />
+              <div className="mt-1 flex items-center justify-between text-xs text-zinc-700 dark:text-zinc-300">
+                <small>
+                  {Math.floor(position / 60)}:
+                  {String(position % 60).padStart(2, "0")}
+                </small>
+                <small>
+                  {Math.floor(currentTrack.duration / 60)}:
+                  {String(currentTrack.duration % 60).padStart(2, "0")}
+                </small>
+              </div>
+            </div>
+
+            <div className="mt-2 flex justify-center gap-2 relative">
+              <button
+                className="grid h-11 w-11 place-items-center rounded-full bg-violet-100 text-violet-800 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-zinc-800 dark:text-violet-300"
+                onClick={() => switchTrack(trackIndex - 1)}
+                disabled={trackIndex === 0}
+                aria-label="Track sebelumnya"
+              >
+                <SkipBack size={18} />
+              </button>
+              <button
+                className="grid h-11 w-11 place-items-center rounded-full bg-violet-600 text-white"
+                onClick={togglePlay}
+                aria-label={isPlaying ? "Pause" : "Play"}
+              >
+                {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+              </button>
+              <button
+                className="grid h-11 w-11 place-items-center rounded-full bg-violet-100 text-violet-800 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-zinc-800 dark:text-violet-300"
+                onClick={() => switchTrack(trackIndex + 1)}
+                disabled={trackIndex === queue.length - 1}
+                aria-label="Track selanjutnya"
+              >
+                <SkipForward size={18} />
+              </button>
+              <button
+                className="grid h-11 w-11 place-items-center rounded-full bg-violet-100 text-violet-800 dark:bg-zinc-800 dark:text-violet-300 absolute right-0"
+                onClick={() => setIsFullscreen(true)}
+                aria-label="Masuk fullscreen"
+              >
+                <Maximize2 size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

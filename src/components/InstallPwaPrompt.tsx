@@ -9,7 +9,8 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 export default function InstallPwaPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
@@ -46,7 +47,7 @@ export default function InstallPwaPrompt() {
         await deferredPrompt.userChoice;
         setDeferredPrompt(null);
       }}
-      className="fixed bottom-28 right-4 z-50 flex items-center gap-1.5 rounded-full bg-violet-500 px-3 py-2 text-xs font-semibold text-white shadow"
+      className="fixed top-4 right-16 z-50 flex items-center gap-1.5 rounded-full bg-violet-600 px-3 py-2 text-xs font-semibold text-white shadow"
       aria-label="Install app"
     >
       <Download size={14} />
