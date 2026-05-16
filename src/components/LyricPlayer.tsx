@@ -1,15 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Maximize2,
   Minimize2,
   Pause,
   Play,
-  RotateCcw,
   RotateCw,
   SkipBack,
   SkipForward,
+  X,
 } from "lucide-react";
 import type { Track } from "@/data/library";
 import {
@@ -32,6 +33,8 @@ export default function LyricPlayer({
   playlistId,
   preferSharedState = false,
 }: Props) {
+  const router = useRouter();
+
   const initialIndex = useMemo(() => {
     if (!initialTrackId) return 0;
     const idx = queue.findIndex((q) => q.id === initialTrackId);
@@ -45,6 +48,7 @@ export default function LyricPlayer({
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLandscapeLayout, setIsLandscapeLayout] = useState(false);
+  const [showEndOverlay, setShowEndOverlay] = useState(false);
 
   const lyricContainerRef = useRef<HTMLDivElement | null>(null);
   const lyricLineRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -92,14 +96,6 @@ export default function LyricPlayer({
 
   const togglePlay = () => {
     writeSharedState({ isPlaying: !isPlaying });
-  };
-
-  const seek = (delta: number) => {
-    const nextPosition = Math.max(
-      0,
-      Math.min(currentTrack.duration, position + delta),
-    );
-    writeSharedState({ position: nextPosition });
   };
 
   const switchTrack = (nextIndex: number) => {
@@ -188,6 +184,14 @@ export default function LyricPlayer({
     };
   }, [isFullscreen]);
 
+  useEffect(() => {
+    const hasEnded = position >= currentTrack.duration;
+    if (hasEnded && (position !== currentTrack.duration || isPlaying)) {
+      writeSharedState({ position: currentTrack.duration, isPlaying: false });
+    }
+    setShowEndOverlay(hasEnded);
+  }, [currentTrack.duration, isPlaying, position, writeSharedState]);
+
   const handleLyricScroll = () => {
     setIsUserScrolling(true);
 
@@ -212,44 +216,44 @@ export default function LyricPlayer({
 
   const progress =
     currentTrack.duration > 0 ? (position / currentTrack.duration) * 100 : 0;
+  const isLastTrack = trackIndex === queue.length - 1;
+
+  const handleEndOverlayAction = () => {
+    if (isLastTrack) {
+      router.push("/");
+      return;
+    }
+
+    switchTrack(trackIndex + 1);
+    setShowEndOverlay(false);
+  };
 
   return (
     <section
       className={`grid justify-items-center gap-3 ${isFullscreen ? "fixed inset-0 z-50 bg-zinc-100 p-3.5 dark:bg-zinc-900" : ""}`}
     >
       <div
-        className={isFullscreen ? `relative grid h-full w-full ${isLandscapeLayout ? "grid-cols-[1fr_auto] gap-3" : "grid-rows-[auto_1fr]"}` : "w-full"}
+        className={
+          isFullscreen
+            ? `relative grid ${isLandscapeLayout ? "grid-cols-[1fr_auto] gap-3 h-[100dvw] w-[80dvh] rotate-[90deg] -translate-y-[40dvh]" : "grid-rows-[auto_1fr] h-full w-full"}`
+            : "w-full"
+        }
       >
         {isFullscreen ? (
-          <button
-            type="button"
-            className="absolute right-0 top-0 z-10 grid h-8 w-8 place-items-center rounded-full bg-violet-600 text-white"
-            onClick={() => setIsFullscreen(false)}
-            aria-label="Exit fullscreen"
+          <div
+            className={`flex items-center justify-between gap-2 ${isLandscapeLayout ? "col-span-2" : "pb-1"}`}
           >
-            <Minimize2 size={14} />
-          </button>
-        ) : null}
-
-        {isFullscreen ? (
-          <div className={`flex items-center justify-between gap-2 ${isLandscapeLayout ? "col-span-2 pr-10" : "pb-1 pr-10"}`}>
             <div className="min-w-0">
-              <p className={`truncate font-semibold leading-tight ${isLandscapeLayout ? "text-base" : "text-sm"}`}>
+              <p
+                className={`truncate font-semibold leading-tight ${isLandscapeLayout ? "text-base" : "text-sm"}`}
+              >
                 {currentTrack.title}
               </p>
-              <p className={`truncate text-zinc-500 dark:text-zinc-400 ${isLandscapeLayout ? "text-xs" : "text-[11px]"}`}>
+              <p
+                className={`truncate text-zinc-500 dark:text-zinc-400 ${isLandscapeLayout ? "text-xs" : "text-[11px]"}`}
+              >
                 {currentTrack.artist}
               </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="grid h-8 w-8 place-items-center rounded-full bg-violet-100 text-violet-800 dark:bg-zinc-800 dark:text-violet-300"
-                onClick={toggleLayoutRotation}
-                aria-label="Rotate layout"
-              >
-                <RotateCw size={14} />
-              </button>
             </div>
           </div>
         ) : null}
@@ -273,6 +277,26 @@ export default function LyricPlayer({
             </button>
           ))}
         </div>
+        {isFullscreen ? (
+          <div className="pointer-events-none absolute bottom-0 right-0 z-20 flex flex-col gap-2 p-2">
+            <button
+              type="button"
+              className="pointer-events-auto grid h-8 w-8 place-items-center rounded-full bg-violet-100 text-violet-800 dark:bg-zinc-800 dark:text-violet-300"
+              onClick={toggleLayoutRotation}
+              aria-label="Rotate layout"
+            >
+              <RotateCw size={14} />
+            </button>
+            <button
+              type="button"
+              className="pointer-events-auto grid h-8 w-8 place-items-center rounded-full bg-violet-600 text-white"
+              onClick={() => setIsFullscreen(false)}
+              aria-label="Exit fullscreen"
+            >
+              <Minimize2 size={14} />
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {!isFullscreen ? (
@@ -336,6 +360,33 @@ export default function LyricPlayer({
                 <Maximize2 size={18} />
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showEndOverlay ? (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/70 p-4">
+          <div className="relative w-full max-w-[420px] rounded-2xl bg-zinc-100 p-5 text-center text-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 min-h-[50dvh] flex flex-col items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setShowEndOverlay(false)}
+              className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+              aria-label="Close overlay"
+            >
+              <X size={14} />
+            </button>
+            <p className="text-lg font-semibold">
+              {isLastTrack
+                ? "ONE OK FCKN ROCKKK!!! LETSGOOO!!!"
+                : "MOVE TO THE NEXT SONG??"}
+            </p>
+            <button
+              type="button"
+              onClick={handleEndOverlayAction}
+              className="mt-4 rounded-full bg-violet-600 px-5 py-2 text-sm font-semibold text-white"
+            >
+              {isLastTrack ? "Lets Go Home" : "Yes, Lets goo"}
+            </button>
           </div>
         </div>
       ) : null}
