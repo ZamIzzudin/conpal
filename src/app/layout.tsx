@@ -25,6 +25,8 @@ export const metadata: Metadata = {
 };
 const offlineUrls = [
   "/",
+  "/manifest.json",
+  "/icon.jpg",
   ...playlists.map((playlist) => `/playlist/${playlist.id}`),
   ...tracks.map((track) => `/lyric/${track.id}`),
 ];
@@ -46,7 +48,7 @@ export default function RootLayout({
         <ThemeToggle />
         <CurrentPlayBar />
         <Script id="sw-register" strategy="afterInteractive">
-          {`if ('serviceWorker' in navigator) { window.addEventListener('load', async () => { const registration = await navigator.serviceWorker.register('/sw.js'); const offlineUrls = ${JSON.stringify(offlineUrls)}; if (registration.active) { registration.active.postMessage({ type: 'PRECACHE_URLS', urls: offlineUrls }); } else if (registration.installing) { registration.installing.addEventListener('statechange', () => { if (registration.active) { registration.active.postMessage({ type: 'PRECACHE_URLS', urls: offlineUrls }); } }); } }); }`}
+          {`if ('serviceWorker' in navigator) { window.addEventListener('load', async () => { const registration = await navigator.serviceWorker.register('/sw.js'); const offlineUrls = ${JSON.stringify(offlineUrls)}; const postPrecache = () => { if (registration.active) { registration.active.postMessage({ type: 'PRECACHE_URLS', urls: offlineUrls }); } }; postPrecache(); navigator.serviceWorker.addEventListener('controllerchange', postPrecache); setTimeout(postPrecache, 500); }); }`}
         </Script>
       </body>
     </html>
